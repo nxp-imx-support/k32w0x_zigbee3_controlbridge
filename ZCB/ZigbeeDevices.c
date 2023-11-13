@@ -41,9 +41,12 @@
 #include "ZigbeeDevices.h"
 #include "ZigbeeConstant.h"
 #include "SerialLink.h"
-// #include "cJSON.h"
 #include "newDb.h"
 #include "zcb.h"
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
 
 /* Defined in zcb_main.c */
 extern void announceDevice(
@@ -253,7 +256,7 @@ ZDLookupDevice(
       psFoundDevice++)
   {
     if (psFoundDevice->u16Id == u16DeviceId &&
-        psFoundDevice->szProfile == u16ProfileId ) // FIXME
+        strncmp(psFoundDevice->szProfile, (char*)&u16ProfileId, 2) == 0 ) // FIXME
     {
       switch (u16ProfileId)
       {
@@ -270,117 +273,6 @@ ZDLookupDevice(
   }
   return psFoundDevice;
 }
-
-// /*!
-//  *
-//  * @param psJsonClusters (In/out) JSON Cluster Array
-//  * @param psClusters     (In)     Clusters supported by the device
-//  */
-// static void
-// ZDPopulateClusters(
-//     cJSON *         psJsonClusters,
-//     tsZDClusterList * psClusters)
-// {
-//   uint8_t u8Index;
-//   tsZDCluster * psCluster;
-//   uint16_t * pu16ClusterId = (uint16_t*) &(psClusters->au16Clusters);
-
-//   for (u8Index = 0; u8Index < psClusters->u8ClusterCount;
-//       u8Index++, pu16ClusterId++)
-//   {
-//     /* Look up for cluster ID */
-//     uint16_t u16Id= ntohs(*pu16ClusterId);
-//     for (psCluster = &(asZigbeeClusters[0]); psCluster != NULL; psCluster++ )
-//     {
-//       if (psCluster->u16Id == u16Id)
-//       {
-//         /* Got it ! add to cluster list */
-//         cJSON * psJsonCluster = cJSON_CreateObject();
-//         cJSON_AddNumberToObject(psJsonCluster, psCluster->szName, u16Id);
-//         cJSON_AddItemToArray(psJsonClusters, psJsonCluster);
-//         break;
-//       }
-//     }
-//     /* If cluster is not recognized (private/reserved Id) */
-//     if (psCluster == NULL)
-//     {
-//       /* Use its ID in hex as name */
-//       char szHexClusterId[sizeof(uint16_t)+1];
-//       sprintf(szHexClusterId, "%04x", u16Id);
-//       cJSON * psJsonCluster = cJSON_CreateObject();
-//       cJSON_AddNumberToObject(psJsonCluster, szHexClusterId, u16Id);
-//       cJSON_AddItemToArray(psJsonClusters, psJsonCluster);
-//     }
-//   }
-// }
-
-// /*!
-//  *
-//  * @param pvUser    (not used) pointer to Cookie from callback caller
-//  * @param u16Length (In) Message length
-//  * @param pvMessage (In) pointer to message
-//  */
-// void ZDSimpleDescResp(
-//     void *pvUser,
-//     uint16_t u16Length,
-//     void *pvMessage)
-// {
-//   tsZDDevice* psDevice = NULL;
-
-//   tsZDSimpleDescRsp *psMessage = (tsZDSimpleDescRsp *)pvMessage;
-//   tsZDClusterList *psInputClusters = (tsZDClusterList *) &psMessage->sInputClusters;
-//   uint8_t * pU8AddrOutputClusters = (uint8_t*) psInputClusters
-//       + 1 // Count field
-//       + sizeof(uint16_t)*psInputClusters->u8ClusterCount; // input cluster array
-
-//   tsZDClusterList *psOutputClusters = (tsZDClusterList *) ((void*)pU8AddrOutputClusters);
-
-//   uint16_t u16ShortAddress  = ntohs(psMessage->u16ShortAddress);
-//   uint16_t u16DeviceID      = ntohs(psMessage->u16DeviceID);
-
-//   /* TODO : check if dev already exists */
-//   /* Create Device */
-//   cJSON * psJsonDesc = cJSON_CreateObject();
-//   cJSON * psInputClusterList = cJSON_CreateArray();
-//   cJSON * psOutputClusterList = cJSON_CreateArray();
-
-//   /* Look up for device ID */
-//   for (psDevice = &(asZigbeeDeviceTable[0]);
-//       psDevice->szDomain != NULL;
-//       psDevice++)
-//   {
-//     if (psDevice->u16Id == u16DeviceID)
-//     {
-//       //cJSON_AddStringToObject(psJsonDesc, "Device", psDevice->szName);
-//       cJSON_AddItemToObjectCS(psJsonDesc, "Device",
-//           cJSON_CreateString(psDevice->szName));
-//       break;
-//     }
-//   }
-
-//   /* If device is not recognized (private/reserved Id) */
-//   if (psDevice == NULL)
-//   {
-//     /* Just set its ID as a string */
-//     // cJSON_AddIntToObject(psJsonDesc, "Device", (int) u16DeviceID);
-//     cJSON_AddItemToObjectCS(psJsonDesc, "Device",
-//         cJSON_CreateNumber((int) u16DeviceID));
-//   }
-
-//   /* Store Endpoint Id */
-//   cJSON_AddNumberToObject(psJsonDesc, "EndPointId", psMessage->u8Endpoint);
-
-//   /* Create Populate cluster lists */
-//   cJSON_AddItemToObjectCS(psJsonDesc, "InputClusters", psInputClusterList);
-//   ZDPopulateClusters(psInputClusterList, psInputClusters);
-//   cJSON_AddItemToObjectCS(psJsonDesc, "outputClusters", psOutputClusterList);
-//   ZDPopulateClusters(psOutputClusterList, psOutputClusters);
-//   /* TODO : store the JSON somewhere */
-
-//   /* For each cluster, request supported attributes */
-//   ZDAttrDiscReq(psMessage);
-//   return;
-// }
 
 /*!
  * Sends message Attribute Discovery Request

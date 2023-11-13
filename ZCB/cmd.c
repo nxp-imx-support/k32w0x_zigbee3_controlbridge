@@ -21,14 +21,19 @@
 
 #include "iotSleep.h"
 #include "nibbles.h"
-#include "parsing.h"
+// #include "parsing.h"
 #include "dump.h"
 #include "newLog.h"
 #include "cmd.h"
 #include "ZigbeeConstant.h"
 #include "ZcbMessage.h"
 
-#define CMD_DEBUG  1
+#if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
+
+#define CMD_DEBUG  0
 
 #ifdef CMD_DEBUG
 #define DEBUG_PRINTF(...) printf(__VA_ARGS__)
@@ -342,174 +347,12 @@ static void HandleRestartFactoryNew(void *pvUser, uint16_t u16Length, void *pvMe
  */
 
 void cmdInit( void ) {
-    int i;
-    for ( i=0; i<NUMINTATTRS; i++ ) {
-        parsingAddIntAttr( intAttrs[i] );
-    }
-    for ( i=0; i<NUMSTRINGATTRS; i++ ) {
-        parsingAddStringAttr( stringAttrs[i], stringMaxlens[i] );
-    }
-
     eSL_AddListener(E_SL_MSG_AUTHENTICATE_DEVICE_RESPONSE, HandleAuthResponse,       NULL);
     eSL_AddListener(E_SL_MSG_OUT_OF_BAND_COMMISSIONING_DATA_RESPONSE, HandleOobCommissioningResponse, NULL);
     eSL_AddListener(E_SL_MSG_GET_PERMIT_JOIN_RESPONSE,     HandleGetPermitResponse,  NULL);
     eSL_AddListener(E_SL_MSG_RESTART_PROVISIONED,          HandleRestartProvisioned, NULL);
     eSL_AddListener(E_SL_MSG_RESTART_FACTORY_NEW,          HandleRestartFactoryNew,  NULL);
 }
-
-#ifdef CMD_DEBUG
-static void cmdDump ( void ) {
-    printf( "CMD dump:\n" );
-    int i;
-    for ( i=0; i<NUMINTATTRS; i++ ) {
-        printf( "- %-12s = %d\n", intAttrs[i], parsingGetIntAttr( intAttrs[i] ) );
-    }
-    for ( i=0; i<NUMSTRINGATTRS; i++ ) {
-        printf( "- %-12s = %s\n", stringAttrs[i], parsingGetStringAttr( stringAttrs[i] ) );
-    }
-}
-#endif
-
-// ------------------------------------------------------------------
-// Handle
-// ------------------------------------------------------------------
-
-/**
- * \brief JSON Parser for cmd commands (e.g. reset, set channel). Commands are typically sent to
- * the ZCB-JenOS via the serial port.
- * \retval E_SL_OK When OK, else an error number
- */
-
-int cmdHandle( void ) {
-    int ret = E_SL_OK;
-#ifdef CMD_DEBUG
-    cmdDump();
-#endif
-
-    int reset = parsingGetIntAttr( "reset" );
-    if ( reset >= 0 ) {
-        if ( reset ) {
-            printf( "Reset command %d\n", reset );
-        } else {
-            printf( "Factory-Reset command %d\n", reset );
-            ret = eSL_SendMessage(E_SL_MSG_ERASE_PERSISTENT_DATA, 0, NULL, NULL);
-            if ( ret == E_SL_NOMESSAGE ) {
-                // This is a normal response to the erase command because it takes so long...
-
-                /* The erase persistent data command could take a while */
-                uint16_t u16Length;
-                tsSL_Msg_Status *psStatus = NULL;
-
-                int eStatus = eSL_MessageWait(E_SL_MSG_STATUS, 5000, &u16Length, (void**)&psStatus);
-
-                if (eStatus == E_SL_OK) {
-                    eStatus = psStatus->eStatus;
-                    free(psStatus);
-                } else {
-                    return E_ZCB_COMMS_FAILED;
-                }
-
-                IOT_SLEEP( 2 );
-                ret = E_SL_OK;
-            }
-        }
-        ret += eSL_SendMessage(E_SL_MSG_RESET, 0, NULL, NULL);
-        if (ret != E_SL_OK) {
-            printf( "**** Error %d resetting ZCB\n", ret );
-        }
-    }
-
-    int startnwk = parsingGetIntAttr( "startnwk" );
-    if ( startnwk >= 0 ) {
-        printf( "StartNwk command %d\n", startnwk );
-        eStartNetwork();
-    }
-
-    int erase = parsingGetIntAttr( "erase" );
-    if ( erase >= 0 ) {
-        printf( "Erase command %d -> NOT IMPLEMENTED\n", erase );
-    }
-
-    int getversion = parsingGetIntAttr( "getversion" );
-    if ( getversion >= 0 ) {
-        printf( "GetVersion command %d\n", getversion );
-        if (eSL_SendMessage(E_SL_MSG_GET_VERSION, 0, NULL, NULL) == E_SL_OK) {
-            // Rest handled by callback
-        }
-    }
-
-    int getpermit = parsingGetIntAttr( "getpermit" );
-    if ( getpermit >= 0 ) {
-        printf( "GetPermit command %d\n", getpermit );
-        eGetPermitJoining();
-    }
-
-    // Check for the authorize request
-    char * mac    = parsingGetStringAttr( "authorize" );
-    if ( !isEmptyString( mac ) ) {
-        char * linkkey = parsingGetStringAttr( "linkkey" );
-        uint8_t linkkey_hex[20];
-        nibblestr2hex( (char *)linkkey_hex, 16, linkkey, 32 );
-        printf( "Authorize command %s, %s\n", mac, linkkey );
-
-        uint64_t u64mac = nibblestr2u64( mac );
-
-        printf( "mac: 0x%x%x\n", (int)(u64mac >> 32), (int)(u64mac & 0xFFFFFFFF) );
-        printf( "linkkey_hex: " );
-        dump( (char *)linkkey_hex, 16 );
-
-        eAuthenticateDevice( u64mac, linkkey_hex );
-    }
-
-    // Check for the authorize request for out of band commissioning (installation code)
-    mac    = parsingGetStringAttr( "authorize_oob" );
-    if ( !isEmptyString( mac ) ) {
-        char * key = parsingGetStringAttr( "key" );
-        uint8_t key_hex[20];
-        nibblestr2hex( (char *)key_hex, 16, key, 32 );
-        printf( "Out of band commissioning command %s, %s\n", mac, key );
-
-        uint64_t u64mac = nibblestr2u64( mac );
-
-        printf( "mac: 0x%x%x\n", (int)(u64mac >> 32), (int)(u64mac & 0xFFFFFFFF) );
-        printf( "key_hex: " );
-        dump( (char *)key_hex, 16 );
-
-        eAuthenticateOobDevice( u64mac, key_hex );
-    }
-
-    // Check for setpermit message
-    mac = parsingGetStringAttr( "setpermit" );
-    if ( !isEmptyString( mac ) ) {
-        // MAC not yet implemented
-        int duration = parsingGetIntAttr( "duration" );
-        if ( duration >= 0 ) {
-            printf( "SetPermit command %d\n", duration );
-            eSetPermitJoining( duration );
-        }
-    }
-
-    // Check for chanmask message
-    char * chanmask = parsingGetStringAttr( "chanmask" );
-    if ( !isEmptyString( chanmask ) ) {
-        int mask = (int)nibblestr2u64( chanmask );
-        int i = 0, r = rand(), bit, chan = 15;
-        while ( i < 32 ) {
-            bit = ( i + r ) % 32;
-            printf( "i = %d, bit = 0x%x\n", i, bit );
-            if ( mask & ( 1 << bit ) ) {
-                chan = bit;
-                break;
-            }
-            i++;
-        }
-        printf( "Chanmask command %s -> 0x%x -> %d\n", chanmask, mask, chan );
-        eSetChannelMask( chan );   // Was: mask
-    }
-
-    return( ret );
-}
-
 
 /**
  * \brief Zigbee Control Bridge Command

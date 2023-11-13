@@ -15,6 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <inttypes.h>
 
 #include "zcb.h"
 #include "nibbles.h"
@@ -27,6 +28,11 @@
 
 #include "zcb_main.h"
 #include "ZcbMessage.h"
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
 
 // ---------------------------------------------------------------
 // Macros
@@ -59,6 +65,8 @@ teZcbStatus eZCB_SendMsg(int MsgType, newdb_zcb_t *Zcb, void* data)
     }
 
     pthread_mutex_unlock(&ZcbMsg.bridge_mutex);
+
+    return E_ZCB_OK;
 }
 
 // ---------------------------------------------------------------------
@@ -103,7 +111,7 @@ void announceDevice(
 
     char  mac[LEN_MAC_NIBBLE+2];
     char  caType[LEN_TY+2];
-    int i;
+    size_t i;
     tsDeviceMapEntry * psDevice;
     newdb_zcb_t        sZcb;
 
@@ -272,7 +280,7 @@ void handleAttribute( uint16_t u16ShortAddress,
             case E_ZB_ATTRIBUTEID_ONOFF_ONOFF:
                 {
                     sendActuatorOnOff( u64IEEEAddress, u8Endpoint, (int)u64Data );
-                    printf( "get onoff attribute report with u16AttributeID : %x, u64Data : %d\n", u16AttributeID, u64Data);
+                    printf( "get onoff attribute report with u16AttributeID : %x, u64Data : %"PRIu64"\n", u16AttributeID, u64Data);
                     strncpy(zcb.info, (u64Data ? "on" : "off"), LEN_CMD);
                     newDbSetZcb(&zcb);
                 }
@@ -288,8 +296,8 @@ void handleAttribute( uint16_t u16ShortAddress,
             switch ( u16AttributeID ) {
             case E_ZB_ATTRIBUTEID_MS_TEMP_MEASURED:
                 {
-                    printf( "got measurement temp attribute report with gDeviceID : %d, u64Data : %ld\n", zcb.matterIndex, u64Data);
-                    ZcbAttribute_t *msg_data = (ZcbAttribute_t *)malloc(sizeof(ZcbAttribute_t));
+                    printf( "got measurement temp attribute report with gDeviceID : %d, u64Data : %"PRIu64"\n", zcb.matterIndex, u64Data);
+                    msg_data = (ZcbAttribute_t *)malloc(sizeof(ZcbAttribute_t));
                     msg_data->u16ClusterID = u16ClusterID;
                     msg_data->u16AttributeID = u16AttributeID;
                     msg_data->u64Data = u64Data;
@@ -349,7 +357,7 @@ static void ZCB_HandleLog                       (void *pvUser, uint16_t u16Lengt
  * @return 1 if a new node is created, 0 else
  */
 int zcbAddNode( uint16_t  shortAddress, uint64_t extendedAddress ) {
-    DEBUG_PRINTF( "Add node 0x%04x, 0x%016llx\n",
+    DEBUG_PRINTF( "Add node 0x%04x, 0x%016PRIx64\n",
             (int)shortAddress, (long long unsigned int)extendedAddress );
     int iReturn = 1;
     char  mac[LEN_MAC_NIBBLE+2];
@@ -1719,13 +1727,13 @@ static void ZCB_HandleAttributeReport(void *pvUser, uint16_t u16Length, void *pv
 
         default:
             printf( "Unknown attribute data type (%d)\n", psMessage->u8Type );
-            printf( "-  8: Data = %llx\n", (uint64_t )psMessage->uData.u8Data );
-            printf( "- 16: Data = %llx\n", (uint64_t )ntohs( psMessage->uData.u16Data ) );
-            printf( "- 32: Data = %llx\n", (uint64_t )ntohl( psMessage->uData.u32Data ) );
-            printf( "- 64: Data = %llx\n", (uint64_t )be64toh( psMessage->uData.u64Data ) );
+            printf( "-  8: Data = %"PRIx64"\n", (uint64_t )psMessage->uData.u8Data );
+            printf( "- 16: Data = %"PRIx64"\n", (uint64_t )ntohs( psMessage->uData.u16Data ) );
+            printf( "- 32: Data = %"PRIx64"\n", (uint64_t )ntohl( psMessage->uData.u32Data ) );
+            printf( "- 64: Data = %"PRIx64"\n", (uint64_t )be64toh( psMessage->uData.u64Data ) );
             break;
     }
-    DEBUG_PRINTF( "Data = 0x%016llx\n", u64Data);
+    DEBUG_PRINTF( "Data = 0x%016%"PRIx64"\n", u64Data);
 
     handleAttribute( psMessage->u16ShortAddress,
                     psMessage->u16ClusterID,

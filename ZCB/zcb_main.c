@@ -4,11 +4,12 @@
 // Author:    nxf47724
 // Copyright: NXP B.V. 2023. All rights reserved
 // ------------------------------------------------------------------
+#include <inttypes.h>
 
 #include "newDb.h"
 #include "newLog.h"
-
 #include "zcb_main.h"
+#include "nibbles.h"
 
 #define ZCB_DEBUG
 
@@ -92,7 +93,7 @@ void SmartPlugUpdateIntervalMsg( uint64_t u64IEEEAddress, uint16_t u16UpdateInte
     u642nibblestr( u64IEEEAddress, mac );
     uint16_t u16ShortAddress = zcbNodeGetShortAddress( mac );
 
-    DEBUG_PRINTF("vSendPlugMeterUpdateIntervalMsg (0x%llx -> 0x%04x): interval=%d seconds\n",
+    DEBUG_PRINTF("vSendPlugMeterUpdateIntervalMsg (0x%16"PRIx64" -> 0x%04x): interval=%d seconds\n",
 		 u64IEEEAddress, u16ShortAddress, u16UpdateInterval);
 
     int ZCL_MANUFACTURER_CODE = 0x1037;  // NXP

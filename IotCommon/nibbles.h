@@ -4,11 +4,11 @@
 // Author:    nlv10677
 // Copyright: NXP B.V. 2014. All rights reserved
 // ------------------------------------------------------------------
+#include <stdint.h>
+
 #if defined __cplusplus
 extern "C" {
 #endif
-
-#include <stdint.h>
 
 int nibble2num( char c );
 char num2nibble( int num );

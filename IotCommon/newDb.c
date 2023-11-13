@@ -29,6 +29,10 @@
 #include "newDb.h"
 #include "ZigbeeConstant.h"
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#pragma GCC diagnostic ignored "-Wundef"
+#endif
 
 
 #ifdef TARGET_LINUX_PC

@@ -56,6 +56,13 @@
 #include "Serial.h"
 #include "Utils.h"
 
+// #if defined(__GNUC__)
+// #pragma GCC diagnostic ignored "-Wunused-function"
+// #pragma GCC diagnostic ignored "-Wunused-variable"
+// #endif
+
+
+
 #define SERIAL_DEBUG
 
 #ifdef SERIAL_DEBUG
@@ -284,9 +291,7 @@ teSerial_Status eSerial_ReadBuffer(unsigned char *data, uint32_t *count)
     }
     else
     {
-#if DEBUG
-        if (verbosity) printf( "Serial read: %d\n", res);
-#endif /* DEBUG */
+        if (verbosity) DEBUG_PRINTF( "Serial read: %d\n", res);
         if (res == 0)
         {
             DEBUG_PRINTF( "Serial connection to module interrupted\n");
@@ -301,8 +306,7 @@ teSerial_Status eSerial_ReadBuffer(unsigned char *data, uint32_t *count)
 teSerial_Status eSerial_WriteBuffer(unsigned char *data, uint32_t count)
 {
     int attempts = 0;
-    //printf("send char %d\n", data);
-    int total_sent_bytes = 0, sent_bytes = 0;
+    uint32_t total_sent_bytes = 0, sent_bytes = 0;
 
     while (total_sent_bytes < count)
     {

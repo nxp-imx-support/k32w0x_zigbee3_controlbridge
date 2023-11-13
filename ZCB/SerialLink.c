@@ -60,6 +60,12 @@
 #include "iotSleep.h"
 #include "dump.h"
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wenum-conversion"
+#endif
+
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
 /****************************************************************************/
@@ -79,11 +85,11 @@
 
 #define SL_MAX_CALLBACK_QUEUES 3
 
-#if DEBUG_SERIALLINK
+#if DBG_SERIALLINK
 #define DEBUG_PRINTF(...) printf(__VA_ARGS__)
 #else
 #define DEBUG_PRINTF(...)
-#endif /* DEBUG_SERIALLINK */
+#endif /* DBG_SERIALLINK */
 
 /****************************************************************************/
 /***        Type Definitions                                              ***/
@@ -286,28 +292,22 @@ teSL_Status eSL_SendMessage(uint16_t u16Type, uint16_t u16Length, void *pvMessag
     /* Make sure there is only one thread sending messages to the node at a time. */
     pthread_mutex_lock(&sSerialLink.mutex);
 
-// printf( "a: 0x%04x - %d\n", u16Type, u16Length );
-// dump( (char *)pvMessage, u16Length );
+
     eStatus = eSL_WriteMessage(u16Type, u16Length, (uint8_t *)pvMessage);
 
     if (eStatus == E_SL_OK)
     {
-// printf( "b\n" );
-        /* Command sent successfully */
 
-        uint16_t    u16Length;
         tsSL_Msg_Status sStatus;
         tsSL_Msg_Status *psStatus = &sStatus;
-
         sStatus.u16MessageType = u16Type;
 
         /* Expect a status response within 500ms */
         eStatus = eSL_MessageWait(E_SL_MSG_STATUS, 500, &u16Length, (void**)&psStatus);
-// printf( "c\n" );
+
 
         if (eStatus == E_SL_OK)
         {
-// printf( "d\n" );
             DBG_vPrintf(DBG_SERIALLINK, "Status: %d, Sequence %d\n", psStatus->eStatus, psStatus->u8SequenceNo);
             eStatus = psStatus->eStatus;
             if (eStatus == E_SL_OK)
@@ -860,7 +860,7 @@ static void *pvReaderThread(tsUtilsThread *psThreadInfo)
             {
                 /* Log messages handled here first, and passed to new thread in case user has added another handler */
                 sMessage.au8Message[sMessage.u16Length] = '\0';
-#ifdef DEBUG_SERIALLINK
+#ifdef DBG_SERIALLINK
                 uint8_t u8LogLevel = sMessage.au8Message[0];
                 char *pcMessage = (char *)&sMessage.au8Message[1];
                 DEBUG_PRINTF( "Module: %s (%d)", pcMessage, u8LogLevel);
