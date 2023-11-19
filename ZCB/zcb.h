@@ -144,6 +144,7 @@ teZcbStatus eZCB_EstablishComms(void);
 teZcbStatus eZCB_SendMsg(int MsgType, newdb_zcb_t *Zcb, void* data);
 
 teZcbStatus eOnOff( uint16_t u16ShortAddress, uint8_t u8Mode );
+teZcbStatus eReadOnoff( uint16_t u16ShortAddress );
 
 int eZCB_NeighbourTableRequest( int start );
 

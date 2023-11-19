@@ -270,6 +270,8 @@ void handleAttribute( uint16_t u16ShortAddress,
 
     if ( newDbGetZcbSaddr( u16ShortAddress, &zcb ) ) {
         u64IEEEAddress = nibblestr2u64( zcb.mac );
+    } else {
+        printf("not found zcb with saddr 0x%04X \n", u16ShortAddress);
     }
 
     if ( u64IEEEAddress ) {
@@ -283,6 +285,11 @@ void handleAttribute( uint16_t u16ShortAddress,
                     printf( "get onoff attribute report with u16AttributeID : %x, u64Data : %"PRIu64"\n", u16AttributeID, u64Data);
                     strncpy(zcb.info, (u64Data ? "on" : "off"), LEN_CMD);
                     newDbSetZcb(&zcb);
+                    msg_data = (ZcbAttribute_t *)malloc(sizeof(ZcbAttribute_t));
+                    msg_data->u16ClusterID = u16ClusterID;
+                    msg_data->u16AttributeID = u16AttributeID;
+                    msg_data->u64Data = u64Data;
+                    eZCB_SendMsg(BRIDGE_WRITE_ATTRIBUTE, &zcb, msg_data);
                 }
                 break;
 
@@ -357,7 +364,7 @@ static void ZCB_HandleLog                       (void *pvUser, uint16_t u16Lengt
  * @return 1 if a new node is created, 0 else
  */
 int zcbAddNode( uint16_t  shortAddress, uint64_t extendedAddress ) {
-    DEBUG_PRINTF( "Add node 0x%04x, 0x%016PRIx64\n",
+    DEBUG_PRINTF( "Add node 0x%04x, 0x%016"PRIx64"\n",
             (int)shortAddress, (long long unsigned int)extendedAddress );
     int iReturn = 1;
     char  mac[LEN_MAC_NIBBLE+2];
@@ -419,6 +426,7 @@ int zcbNodeLeft( uint64_t extendedAddress, int keep ) {
 
     newdb_zcb_t zcb;
     if ( newDbGetZcb( mac, &zcb ) ) {
+        DEBUG_PRINTF( "Left node matterIndex is %d\n", zcb.matterIndex);
         eZCB_SendMsg(BRIDGE_REMOVE_DEV, &zcb, NULL);
         zcb.status = (keep) ? ZCB_STATUS_LEFT : ZCB_STATUS_FREE;
         newDbSetZcb( &zcb );
@@ -566,6 +574,38 @@ teZcbStatus eOnOff( uint16_t u16ShortAddress, uint8_t u8Mode ) {
     return E_ZCB_OK;
 }
 
+teZcbStatus eReadOnoff( uint16_t u16ShortAddress ) {
+
+    newdb_zcb_t sZcb;
+    tsZDReadAttrResp Message;
+    tsZDReadAttrResp *psMessage = &Message;
+    uint16_t u16Length = sizeof(tsZDReadAttrResp);
+    uint16_t u16OnOffAttrId = E_ZB_ATTRIBUTEID_ONOFF_ONOFF;
+
+    if(! newDbGetZcbSaddr(u16ShortAddress, &sZcb))
+        return E_ZCB_ERROR;
+
+    ZDReadAttrReq(
+        u16ShortAddress,
+        ZB_ENDPOINT_ZHA,
+        ZB_ENDPOINT_ONOFF,
+        E_ZB_CLUSTERID_ONOFF,
+        1,
+        &u16OnOffAttrId);
+
+    while(1) {
+        if (eSL_MessageWait(E_SL_MSG_READ_ATTRIBUTE_RESPONSE, 1000, &u16Length,
+            (void**)&psMessage) != E_SL_OK)
+        {
+            DEBUG_PRINTF( "No response to read attribute request\n");
+            return E_ZCB_ERROR;
+        } else {
+            break;
+        }
+    }
+
+    return E_ZCB_OK;
+}
 
 teZcbStatus SimpleDescriptorRequest(uint16_t u16ShortAddress) {
 
@@ -1733,7 +1773,7 @@ static void ZCB_HandleAttributeReport(void *pvUser, uint16_t u16Length, void *pv
             printf( "- 64: Data = %"PRIx64"\n", (uint64_t )be64toh( psMessage->uData.u64Data ) );
             break;
     }
-    DEBUG_PRINTF( "Data = 0x%016%"PRIx64"\n", u64Data);
+    DEBUG_PRINTF( "Data = 0x%016"PRIx64"\n", u64Data);
 
     handleAttribute( psMessage->u16ShortAddress,
                     psMessage->u16ClusterID,
@@ -1902,10 +1942,10 @@ static void ZCB_HandleReadAttrResp(
         strncpy(sZcbDev.info,
             (psMessage->au8AttributeValue[0] ? "on" : "off"),
             LEN_CMD);
+
+        sZcbDev.status = ZCB_STATUS_JOINED;
         /* Store in ZCB DB */
         newDbSetZcb(&sZcbDev);
-
-        DEBUG_PRINTF("onoff device %04x status: %s \n", u16ShortAddr, sZcbDev.info);
       }
       else
       {
@@ -1918,14 +1958,6 @@ static void ZCB_HandleReadAttrResp(
             psMessage->u8AttributeDataType
             );
       }
-    }
-    /* Store on/off state in DB, it will then be push in Device DB during Announce flow */
-    if (extendedAddress)
-    {
-      announceDevice(extendedAddress,
-          (uint16_t) sZcbDev.type,
-          sZcbDev.u16ProfileId,
-          sZcbDev.u8DeviceVersion);
     }
 
     if ( sZcbDev.type == SIMPLE_DESCR_THERMOSTAT ) {
