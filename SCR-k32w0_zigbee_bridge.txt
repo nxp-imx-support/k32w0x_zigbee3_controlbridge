@@ -1,0 +1,19 @@
+NXP Software Content Register
+
+Release - 2023q4
+Nov 2023
+
+Outgoing License: LA_OPT_NXP_Software_License v45 May 2023 - Additional distribution license granted - Section 2.3 applies
+License File:     LICENSE.txt
+
+--------------------------------------------
+
+Package:                     k32w0_zigbee_bridge
+Version:                     2023q4
+Outgoing License:            LA_OPT_NXP_Software_License v45 May 2023 Additional distribution license granted - Section 2.3 applies
+License File:                COPYING
+Package Category:            ZigbeeGateway
+Type of Content:             source
+Description and comments:    Zigbee Gateway code for Matter Zigbee Bridge 
+Release Location:            NA
+Origin:                      NXP (LA_OPT_NXP_Software_License)
